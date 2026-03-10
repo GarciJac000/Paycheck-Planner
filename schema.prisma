@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  paystubs          Paystub[]
+  bills             Bill[]
+  allocations       Allocation[]
+  spendingPatterns  SpendingPattern[]
+
+  @@map("users")
+}
+
+model Paystub {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  paystubDate   DateTime
+  netPay        Decimal   @db.Decimal(10, 2)
+  hoursWorked   Decimal?  @db.Decimal(5, 2)
+  regularPay    Decimal?  @db.Decimal(10, 2)
+  overtimePay   Decimal?  @db.Decimal(10, 2)
+  
+  createdAt     DateTime  @default(now())
+  allocations   Allocation[]
+
+  @@index([userId])
+  @@map("paystubs")
+}
+
+model Bill {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name          String
+  amount        Decimal   @db.Decimal(10, 2)
+  dueDate       Int
+  isFixed       Boolean   @default(true)
+  isRecurring   Boolean   @default(true)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  allocations   Allocation[]
+
+  @@index([userId])
+  @@map("bills")
+}
+
+model Allocation {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  paystubId     String
+  paystub       Paystub   @relation(fields: [paystubId], references: [id], onDelete: Cascade)
+  
+  billId        String?
+  bill          Bill?     @relation(fields: [billId], references: [id], onDelete: SetNull)
+  
+  allocatedAmount Decimal @db.Decimal(10, 2)
+  category      String
+  orderPriority Int
+  
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([paystubId])
+  @@map("allocations")
+}
+
+model SpendingPattern {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  category      String
+  averageAmount Decimal   @db.Decimal(10, 2)
+  paycheckCount Int
+  lastUpdated   DateTime  @default(now())
+
+  @@unique([userId, category])
+  @@index([userId])
+  @@map("spending_patterns")
+}
